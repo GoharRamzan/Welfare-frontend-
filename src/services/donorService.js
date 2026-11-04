@@ -1,29 +1,52 @@
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-// const API_URL ='https://fikre-sadat.vercel.app/api'
-
-
+// const API_URL = (
+//   import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+// ).replace(/\/+$/, "");
+const API_URL ='https://fikre-sadat.vercel.app/api'
 // Common API request
 const request = async (endpoint, options = {}) => {
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
+  const url = `${API_URL}${endpoint}`;
 
-  const data = await response.json();
+  try {
+    const response = await fetch(url, {
+      ...options,
+      credentials: "include",
+      headers: {
+        ...(options.body
+          ? { "Content-Type": "application/json" }
+          : {}),
+        ...options.headers,
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(data.message || "Something went wrong");
+    const text = await response.text();
+
+    let data = {};
+
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(`Invalid server response: ${response.status}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || `Request failed: ${response.status}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Donor API Error:", {
+      url,
+      message: error.message,
+    });
+
+    throw error;
   }
-
-  return data;
 };
 
-// Convert database donation fields to frontend fields
+// Map donation
 const mapDonation = (donation) => ({
   id: donation.id,
   donationNo: `DON-${String(donation.id).padStart(3, "0")}`,
@@ -33,7 +56,7 @@ const mapDonation = (donation) => ({
   remarks: donation.remarks || "",
 });
 
-// Convert database donor fields to frontend fields
+// Map donor
 const mapDonor = (donor) => ({
   id: donor.id,
   donorId: donor.donor_no,
@@ -51,20 +74,23 @@ const mapDonor = (donor) => ({
   monthlyDonationCount: Number(donor.monthly_donation_count || 0),
 });
 
+// Get all donors
 export const getDonors = async () => {
   const data = await request("/donors");
-  return data.donors.map(mapDonor);
+  return (data.donors || []).map(mapDonor);
 };
 
+// Get donor details
 export const getDonorById = async (id) => {
   const data = await request(`/donors/${id}`);
 
   return {
     ...mapDonor(data.donor),
-    donations: data.donations.map(mapDonation),
+    donations: (data.donations || []).map(mapDonation),
   };
 };
 
+// Create donor
 export const createDonor = async (donor) => {
   const data = await request("/donors", {
     method: "POST",
@@ -74,6 +100,7 @@ export const createDonor = async (donor) => {
   return mapDonor(data.donor);
 };
 
+// Update donor
 export const updateDonor = async (id, donor) => {
   const data = await request(`/donors/${id}`, {
     method: "PUT",
@@ -83,6 +110,7 @@ export const updateDonor = async (id, donor) => {
   return mapDonor(data.donor);
 };
 
+// Add donation
 export const addDonation = async (id, donation) => {
   return request(`/donors/${id}/donations`, {
     method: "POST",
@@ -95,6 +123,7 @@ export const addDonation = async (id, donation) => {
   });
 };
 
+// Delete donor
 export const deleteDonor = async (id) => {
   return request(`/donors/${id}`, {
     method: "DELETE",
