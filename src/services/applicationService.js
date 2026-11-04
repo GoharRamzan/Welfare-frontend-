@@ -1,4 +1,4 @@
-// const API_URL = import.meta.env.VITE_API_URL || 'http://192.168.0.112:5000/api'
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 const API_URL ='https://fikre-sadat.vercel.app/api'
 
 async function request(endpoint, options = {}) {

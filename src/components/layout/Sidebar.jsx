@@ -9,6 +9,7 @@ import {
   X,
   HeartHandshake,
 } from "lucide-react";
+import logo from '../../assets/fswf-logo.png'
 
 const navigation = [
   {
@@ -57,17 +58,20 @@ export default function Sidebar({ isOpen, onClose }) {
           flex-col overflow-hidden border-r border-slate-200 bg-white
           transition-transform duration-300 ease-in-out
           lg:sticky lg:top-0 lg:z-auto lg:shrink-0 lg:translate-x-0
-          ${
-            isOpen
-              ? "translate-x-0"
-              : "-translate-x-full"
+          ${isOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
           }`}
       >
         {/* Sidebar Header */}
         <div className="flex h-20 shrink-0 items-center justify-between border-b border-slate-100 px-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-950 text-white">
-              <HeartHandshake size={25} />
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-white text-white">
+              <img
+                src={logo}
+                alt="Fikr-e-Sadaat Welfare Foundation"
+                className=" object-contain "
+              />
             </div>
 
             <div className="min-w-0">
@@ -103,10 +107,9 @@ export default function Sidebar({ isOpen, onClose }) {
               to={path}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-blue-950 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-blue-950"
+                `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${isActive
+                  ? "bg-blue-950 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-blue-950"
                 }`
               }
             >
