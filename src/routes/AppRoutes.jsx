@@ -31,7 +31,7 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/home" replace />} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
 
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/applications" element={<Applications/>} />
