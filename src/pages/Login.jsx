@@ -161,7 +161,7 @@ export default function App() {
 
           <div className="relative min-w-0">
             <p className="text-xs font-bold tracking-wide">
-              FIKR-E-SADAAT
+              FIKHRE SAADAT
             </p>
             <p className="mt-0.5 text-[10px] tracking-[0.12em] text-blue-200">
               WELFARE FOUNDATION
