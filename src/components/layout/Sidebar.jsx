@@ -128,7 +128,7 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="shrink-0 border-t border-slate-100 bg-white p-4">
           <div className="rounded-xl bg-slate-50 p-3">
             <p className="text-sm font-semibold text-slate-800">
-              Fikr-e-Sadaat
+              Fikhre Saadat
             </p>
             <p className="mt-1 text-xs text-slate-500">
               Welfare Foundation
