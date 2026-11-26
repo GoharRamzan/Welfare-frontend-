@@ -1,44 +1,65 @@
-// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-const API_URL ='https://fikre-sadat.vercel.app/api'
+import API_URL from "../services/api";
 
-async function request(endpoint, options = {}) {
-  const response = await fetch(`${API_URL}/applications${endpoint}`, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
+async function request(endpoint = "", options = {}) {
+    let response;
 
-  const data = await response.json();
+    try {
+        response = await fetch(`${API_URL}/applications${endpoint}`, {
+            ...options,
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+                ...options.headers,
+            },
+        });
+    } catch (error) {
+        console.error("Application API Network Error:", error);
+        throw new Error("Unable to connect to server.");
+    }
 
-  if (!response.ok) {
-    throw new Error(data.message || "Something went wrong");
-  }
+    const data = await response.json().catch(() => ({}));
 
-  return data;
+    if (!response.ok) {
+        throw new Error(data.message || `Request failed: ${response.status}`);
+    }
+
+    return data;
 }
 
+const buildQuery = (params = {}) => {
+    const query = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== "" && value !== null && value !== undefined) {
+            query.set(key, value);
+        }
+    });
+
+    return query.toString();
+};
+
 export const applicationService = {
-  getAll: () => request(""),
+    getAll: (params = {}) => {
+        const query = buildQuery(params);
+        return request(query ? `?${query}` : "");
+    },
 
-  getById: (id) => request(`/${id}`),
+    getById: (id) => request(`/${id}`),
 
-  create: (application) =>
-    request("", {
-      method: "POST",
-      body: JSON.stringify(application),
-    }),
+    create: (application) =>
+        request("", {
+            method: "POST",
+            body: JSON.stringify(application),
+        }),
 
-  update: (id, application) =>
-    request(`/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(application),
-    }),
+    update: (id, application) =>
+        request(`/${id}`, {
+            method: "PUT",
+            body: JSON.stringify(application),
+        }),
 
-  delete: (id) =>
-    request(`/${id}`, {
-      method: "DELETE",
-    }),
+    delete: (id) =>
+        request(`/${id}`, {
+            method: "DELETE",
+        }),
 };

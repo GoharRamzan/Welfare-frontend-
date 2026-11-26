@@ -22,14 +22,19 @@ const navigation = [
     path: "/donors",
     icon: Users,
   },
-  // {
-  //   name: "Beneficiaries",
-  //   path: "/beneficiaries",
-  //   icon: HandHeart,
-  // },
+  {
+    name: "Beneficiaries",
+    path: "/beneficiaries",
+    icon: HandHeart,
+  },
   {
     name: "Applications",
     path: "/applications",
+    icon: FileCheck2,
+  },
+  {
+    name: "Monthly Grocery",
+    path: "/monthly-grocery",
     icon: FileCheck2,
   },
   // {

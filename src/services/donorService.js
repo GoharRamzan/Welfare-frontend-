@@ -1,8 +1,5 @@
 
-// const API_URL = (
-//   import.meta.env.VITE_API_URL || "http://localhost:5000/api"
-// ).replace(/\/+$/, "");
-const API_URL ='https://fikre-sadat.vercel.app/api'
+import API_URL from "../services/api";
 // Common API request
 const request = async (endpoint, options = {}) => {
   const url = `${API_URL}${endpoint}`;

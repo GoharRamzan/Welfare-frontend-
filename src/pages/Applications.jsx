@@ -1,633 +1,67 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { applicationService } from "../services/applicationService";
+
 import {
     Plus,
     Search,
     SlidersHorizontal,
     Eye,
     Pencil,
-    X,
     Clock3,
     CheckCircle2,
     AlertCircle,
     FileText,
-    Paperclip,
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    X,
+    RefreshCw,
 } from "lucide-react";
 
-// Empty form
-const emptyForm = {
-    applicationNo: "",
-    receivingDate: new Date().toISOString().slice(0, 10),
-    applicantName: "",
-    guardianName: "",
-    cnic: "",
-    phone: "",
-    address: "",
-    approvalDate: "",
-    caseType: "Grocery",
-    description: "",
-    deliveryDate: "",
-    taskStatus: "Pending",
-    remarks: "",
-    fileName: "",
+import { applicationService } from "../services/applicationService";
+
+import {
+    mapApplication,
+    mapToDatabase,
+    getDeadline,
+    formatDate,
+} from "../components/application/applicationUtils";
+
+import StatusBadge from "../components/application/StatusBadge";
+import StatCard from "../components/application/StatCard";
+import ApplicationModal from "../components/application/ApplicationModal";
+import DetailsModal from "../components/application/DetailsModal";
+
+const PAGE_SIZE = 20;
+
+const CASE_TYPES = [
+    "Grocery",
+    "Marriage",
+    "Medical",
+    "Education",
+    "Financial Assistance",
+    "Household Assistance",
+    "Multiple",
+    "Other",
+];
+
+const TASK_FILTERS = ["All", "Pending", "Complete", "Hold"];
+
+const APPLICATION_FILTERS = [
+    "All",
+    "Pending",
+    "Approved",
+    "Rejected",
+];
+
+const EMPTY_PAGINATION = {
+    page: 1,
+    limit: PAGE_SIZE,
+    total: 0,
+    totalPages: 0,
 };
 
-const inputClass =
-    "w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
-
-const labelClass = "mb-1.5 block text-xs font-semibold text-slate-600";
-
-// Convert database dates into input-compatible dates
-function formatInputDate(date) {
-    if (!date) return "";
-    return String(date).slice(0, 10);
-}
-
-// Convert database object into frontend object
-function mapApplication(app) {
-    return {
-        id: app.id,
-        applicationNo: app.application_no || "",
-        receivingDate: formatInputDate(app.receiving_date),
-        applicantName: app.applicant_name || "",
-        guardianName: app.guardian_name || "",
-        cnic: app.cnic || "",
-        phone: app.phone || "",
-        address: app.address || "",
-        approvalDate: formatInputDate(app.approval_date),
-        caseType: app.case_type || "",
-        description: app.description || "",
-        deliveryDate: formatInputDate(app.delivery_date),
-        taskStatus: app.task_status || "Pending",
-        remarks: app.remarks || "",
-        fileName: app.attachment || "",
-    };
-}
-
-// Convert frontend object into database object
-function mapToDatabase(form) {
-  return {
-    receiving_date: form.receivingDate,
-    applicant_name: form.applicantName,
-    guardian_name: form.guardianName || null,
-    cnic: form.cnic || null,
-    phone: form.phone || null,
-    address: form.address || null,
-    approval_date: form.approvalDate || null,
-    case_type: form.caseType || null,
-    description: form.description || null,
-    delivery_date: form.deliveryDate || null,
-    task_status: form.taskStatus || "Pending",
-    remarks: form.remarks || null,
-    attachment: form.fileName || null,
-  };
-}
-
-function getDeadline(date) {
-    if (!date) return { days: null, status: "Not Set" };
-
-    const today = new Date();
-
-    const todayUTC = Date.UTC(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate()
-    );
-
-    const delivery = new Date(`${date}T00:00:00`);
-
-    const deliveryUTC = Date.UTC(
-        delivery.getFullYear(),
-        delivery.getMonth(),
-        delivery.getDate()
-    );
-
-    const days = Math.round(
-        (deliveryUTC - todayUTC) / (1000 * 60 * 60 * 24)
-    );
-
-    return {
-        days,
-        status: days < 0 ? "Expired" : "On Time",
-    };
-}
-
-function formatDate(date) {
-    if (!date) return "—";
-
-    return new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    });
-}
-
-function StatusBadge({ status }) {
-    const styles = {
-        Pending: "bg-amber-50 text-amber-700 border-amber-200",
-        Complete: "bg-emerald-50 text-emerald-700 border-emerald-200",
-        Hold: "bg-slate-100 text-slate-600 border-slate-200",
-        Expired: "bg-red-50 text-red-700 border-red-200",
-        "On Time": "bg-blue-50 text-blue-700 border-blue-200",
-        "Not Set": "bg-slate-100 text-slate-500 border-slate-200",
-    };
-
-    return (
-        <span
-            className={`inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-semibold ${styles[status] || styles["Not Set"]
-                }`}
-        >
-            {status}
-        </span>
-    );
-}
-
-function StatCard({ title, value, icon: Icon, color }) {
-    return (
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-            <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${color}`}
-            >
-                <Icon size={19} />
-            </div>
-
-            <div className="min-w-0">
-                <p className="truncate text-xs font-medium text-slate-500">
-                    {title}
-                </p>
-                <h3 className="mt-0.5 text-xl font-bold text-slate-800">
-                    {value}
-                </h3>
-            </div>
-        </div>
-    );
-}
-
-function FormField({ label, children, className = "" }) {
-    return (
-        <div className={className}>
-            <label className={labelClass}>{label}</label>
-            {children}
-        </div>
-    );
-}
-
-// Add / Edit Modal
-function ApplicationModal({
-    open,
-    onClose,
-    onSave,
-    editingApplication,
-    saving,
-}) {
-    const [form, setForm] = useState(
-        editingApplication || emptyForm
-    );
-
-    const [selectedFile, setSelectedFile] = useState(null);
-
-    if (!open) return null;
-
-    const updateField = (key, value) => {
-        setForm((prev) => ({ ...prev, [key]: value }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-
-        if (!form.applicantName.trim()) {
-            toast.error("Applicant name is required");
-            return;
-        }
-
-        if (!form.cnic.trim()) {
-            toast.error("CNIC number is required");
-            return;
-        }
-
-        if (!form.receivingDate) {
-            toast.error("Receiving date is required");
-            return;
-        }
-
-        onSave({
-            ...form,
-            fileName: selectedFile?.name || form.fileName || "",
-        });
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-3 sm:p-5">
-            <div className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
-
-                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-800">
-                            {editingApplication
-                                ? "Edit Application"
-                                : "Add New Application"}
-                        </h2>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                            Enter applicant and welfare case information
-                        </p>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-                    >
-                        <X size={19} />
-                    </button>
-                </div>
-
-                <form
-                    onSubmit={handleSubmit}
-                    className="min-h-0 flex-1 overflow-y-auto"
-                >
-                    <div className="space-y-5 p-5">
-
-                        {/* Applicant Information */}
-                        <section>
-                            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-[#12395f]">
-                                <span className="h-5 w-1 rounded-full bg-blue-600" />
-                                Applicant Information
-                            </h3>
-
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-
-
-
-
-
-                                <FormField label="Applicant Name *">
-                                    <input
-                                        className={inputClass}
-                                        value={form.applicantName}
-                                        onChange={(e) =>
-                                            updateField("applicantName", e.target.value)
-                                        }
-                                        placeholder="Full name"
-                                        required
-                                    />
-                                </FormField>
-
-                                <FormField label="Father / Husband / Guardian Name">
-                                    <input
-                                        className={inputClass}
-                                        value={form.guardianName}
-                                        onChange={(e) =>
-                                            updateField("guardianName", e.target.value)
-                                        }
-                                        placeholder="Guardian name"
-                                    />
-                                </FormField>
-
-                                <FormField label="CNIC Number *">
-                                    <input
-                                        className={inputClass}
-                                        value={form.cnic}
-                                        onChange={(e) =>
-                                            updateField("cnic", e.target.value)
-                                        }
-                                        placeholder="XXXXX-XXXXXXX-X"
-                                        required
-                                    />
-                                </FormField>
-
-                                <FormField label="Phone Number">
-                                    <input
-                                        className={inputClass}
-                                        value={form.phone}
-                                        onChange={(e) =>
-                                            updateField("phone", e.target.value)
-                                        }
-                                        placeholder="03XXXXXXXXX"
-                                    />
-                                </FormField>
-                                <FormField label="Receiving Date *">
-                                    <input
-                                        type="date"
-                                        className={inputClass}
-                                        value={form.receivingDate}
-                                        onChange={(e) =>
-                                            updateField("receivingDate", e.target.value)
-                                        }
-                                        required
-                                    />
-                                </FormField>
-                                <FormField
-                                    label="Address"
-                                    className="sm:col-span-2 lg:col-span-3"
-                                >
-                                    <textarea
-                                        rows="2"
-                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                                        value={form.address}
-                                        onChange={(e) =>
-                                            updateField("address", e.target.value)
-                                        }
-                                        placeholder="Complete applicant address"
-                                    />
-                                </FormField>
-
-
-                            </div>
-                        </section>
-
-                        <div className="border-t border-slate-100" />
-
-                        {/* Case Information */}
-                        <section>
-                            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-[#12395f]">
-                                <span className="h-5 w-1 rounded-full bg-blue-600" />
-                                Case Information
-                            </h3>
-
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-
-                                <FormField label="Approval Date">
-                                    <input
-                                        type="date"
-                                        className={inputClass}
-                                        value={form.approvalDate}
-                                        onChange={(e) =>
-                                            updateField("approvalDate", e.target.value)
-                                        }
-                                    />
-                                </FormField>
-
-                                <FormField label="Case Type">
-                                    <select
-                                        className={inputClass}
-                                        value={form.caseType}
-                                        onChange={(e) =>
-                                            updateField("caseType", e.target.value)
-                                        }
-                                    >
-                                        <option>Grocery</option>
-                                        <option>Marriage</option>
-                                        <option>Medical</option>
-                                        <option>Education</option>
-                                        <option>Financial Assistance</option>
-                                        <option>Household Assistance</option>
-                                        <option>Multiple</option>
-                                        <option>Other</option>
-                                    </select>
-                                </FormField>
-
-                                <FormField
-                                    label="Description"
-                                    className="sm:col-span-2 lg:col-span-3"
-                                >
-                                    <textarea
-                                        rows="2"
-                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                                        value={form.description}
-                                        onChange={(e) =>
-                                            updateField("description", e.target.value)
-                                        }
-                                        placeholder="Write details about this welfare case..."
-                                    />
-                                </FormField>
-                            </div>
-                        </section>
-
-                        <div className="border-t border-slate-100" />
-
-                        {/* Delivery Information */}
-                        <section>
-                            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-[#12395f]">
-                                <span className="h-5 w-1 rounded-full bg-blue-600" />
-                                Delivery & Deadline
-                            </h3>
-
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-
-                                <FormField label="Delivery Date">
-                                    <input
-                                        type="date"
-                                        className={inputClass}
-                                        value={form.deliveryDate}
-                                        onChange={(e) =>
-                                            updateField("deliveryDate", e.target.value)
-                                        }
-                                    />
-                                </FormField>
-
-                                <FormField label="Days Remaining">
-                                    <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
-                                        {form.deliveryDate
-                                            ? `${getDeadline(form.deliveryDate).days} days`
-                                            : "Not calculated"}
-                                    </div>
-                                </FormField>
-
-                                <FormField label="Deadline Status">
-                                    <div className="flex h-10 items-center">
-                                        <StatusBadge
-                                            status={
-                                                form.deliveryDate
-                                                    ? getDeadline(form.deliveryDate).status
-                                                    : "Not Set"
-                                            }
-                                        />
-                                    </div>
-                                </FormField>
-                            </div>
-                        </section>
-
-                        <div className="border-t border-slate-100" />
-
-                        {/* Task Status */}
-                        <section>
-                            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-[#12395f]">
-                                <span className="h-5 w-1 rounded-full bg-blue-600" />
-                                Task Progress & Remarks
-                            </h3>
-
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
-                                <FormField label="Task Status">
-                                    <select
-                                        className={inputClass}
-                                        value={form.taskStatus}
-                                        onChange={(e) =>
-                                            updateField("taskStatus", e.target.value)
-                                        }
-                                    >
-                                        <option>Pending</option>
-                                        <option>Complete</option>
-                                        <option>Hold</option>
-                                    </select>
-                                </FormField>
-
-                                <FormField label="Remarks for Completion / Hold">
-                                    <textarea
-                                        rows="2"
-                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                                        value={form.remarks}
-                                        onChange={(e) =>
-                                            updateField("remarks", e.target.value)
-                                        }
-                                        placeholder="Enter remarks..."
-                                    />
-                                </FormField>
-
-                                <FormField
-                                    label="Supporting File"
-                                    className="sm:col-span-2"
-                                >
-                                    <label className="flex min-h-10 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 hover:border-blue-400 hover:bg-blue-50">
-                                        <Paperclip size={17} className="text-blue-700" />
-
-                                        <span className="min-w-0 flex-1 truncate">
-                                            {selectedFile?.name ||
-                                                form.fileName ||
-                                                "Choose a file to attach"}
-                                        </span>
-
-                                        <span className="shrink-0 rounded-md bg-white px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm">
-                                            Browse
-                                        </span>
-
-                                        <input
-                                            type="file"
-                                            className="hidden"
-                                            onChange={(e) =>
-                                                setSelectedFile(e.target.files?.[0] || null)
-                                            }
-                                        />
-                                    </label>
-                                    <p className="mt-1 text-[11px] text-slate-400">
-                                        Currently only the file name is saved, not the actual file.
-                                    </p>
-                                </FormField>
-                            </div>
-                        </section>
-
-                    </div>
-
-                    <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            disabled={saving}
-                            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="rounded-lg bg-[#12395f] px-5 py-2 text-sm font-semibold text-white hover:bg-[#0b2d4d] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {saving
-                                ? "Saving..."
-                                : editingApplication
-                                    ? "Save Changes"
-                                    : "Save Application"}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-// Details Modal
-function DetailsModal({ application, onClose, onEdit }) {
-    if (!application) return null;
-
-    const deadline = getDeadline(application.deliveryDate);
-
-    const details = [
-        ["Application Number", application.applicationNo],
-        ["Receiving Date", formatDate(application.receivingDate)],
-        ["Applicant Name", application.applicantName],
-        ["Father / Husband / Guardian", application.guardianName],
-        ["CNIC Number", application.cnic],
-        ["Phone Number", application.phone],
-        ["Address", application.address],
-        ["Approval Date", formatDate(application.approvalDate)],
-        ["Case Type", application.caseType],
-        ["Description", application.description],
-        ["Delivery Date", formatDate(application.deliveryDate)],
-        [
-            "Days Remaining",
-            deadline.days === null ? "Not set" : `${deadline.days} days`,
-        ],
-        ["Deadline Status", deadline.status],
-        ["Task Status", application.taskStatus],
-        ["Remarks", application.remarks],
-        ["Attached File", application.fileName],
-    ];
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-3 sm:p-5">
-            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white shadow-2xl">
-
-                <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-800">
-                            Application Details
-                        </h2>
-                        <p className="text-xs text-slate-500">
-                            {application.applicationNo}
-                        </p>
-                    </div>
-
-                    <button
-                        onClick={onClose}
-                        className="rounded-lg p-2 hover:bg-slate-100"
-                    >
-                        <X size={19} />
-                    </button>
-                </div>
-
-                <div className="grid grid-cols-1 gap-x-8 gap-y-4 p-5 sm:grid-cols-2">
-                    {details.map(([label, value]) => (
-                        <div
-                            key={label}
-                            className="min-w-0 border-b border-slate-100 pb-3"
-                        >
-                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                {label}
-                            </p>
-
-                            <p className="break-words text-sm font-medium text-slate-700">
-                                {value || "—"}
-                            </p>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
-                    <button
-                        onClick={onClose}
-                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600"
-                    >
-                        Close
-                    </button>
-
-                    <button
-                        onClick={() => onEdit(application)}
-                        className="flex items-center gap-2 rounded-lg bg-[#12395f] px-4 py-2 text-sm font-semibold text-white"
-                    >
-                        <Pencil size={15} />
-                        Edit Application
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// Main Applications Page
 export default function Applications() {
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -636,82 +70,111 @@ export default function Applications() {
     const [search, setSearch] = useState("");
     const [activeFilter, setActiveFilter] = useState("All");
     const [caseFilter, setCaseFilter] = useState("All");
+    const [statusType, setStatusType] = useState("Application");
+
+    const [page, setPage] = useState(1);
+    const [pagination, setPagination] = useState(EMPTY_PAGINATION);
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editingApplication, setEditingApplication] = useState(null);
     const [viewApplication, setViewApplication] = useState(null);
 
-    // Load applications from PostgreSQL
+    // Load applications from backend
+    const loadApplications = useCallback(async (pageNumber = page) => {
+        try {
+            setLoading(true);
+
+            const response = await applicationService.getAll({
+                search: search.trim(),
+                page: pageNumber,
+            });
+
+            setApplications(
+                (response.data || []).map(mapApplication)
+            );
+
+            setPagination(
+                response.pagination || {
+                    ...EMPTY_PAGINATION,
+                    page: pageNumber,
+                }
+            );
+        } catch (error) {
+            console.error("Load Applications Error:", error);
+            toast.error(error.message || "Failed to load applications");
+        } finally {
+            setLoading(false);
+        }
+    }, [search, page]);
+
+    // Search debounce and pagination
     useEffect(() => {
-        const loadApplications = async () => {
-            try {
-                setLoading(true);
+        const timer = setTimeout(() => {
+            loadApplications();
+        }, 350);
 
-                const response = await applicationService.getAll();
+        return () => clearTimeout(timer);
+    }, [loadApplications]);
 
-                setApplications(
-                    (response.applications || []).map(mapApplication)
-                );
-            } catch (error) {
-                console.error("Load Applications Error:", error);
-                toast.error(error.message || "Failed to load applications");
-            } finally {
-                setLoading(false);
-            }
-        };
+    const handleSearch = (value) => {
+        setSearch(value);
+        setPage(1);
+    };
 
-        loadApplications();
-    }, []);
-
-    // Statistics
+    // Current page statistics
     const stats = useMemo(() => {
         return {
-            total: applications.length,
+            total: pagination.total,
 
             pending: applications.filter(
-                (a) => a.taskStatus === "Pending"
+                (item) => item.applicationStatus === "Pending"
             ).length,
 
-            complete: applications.filter(
-                (a) => a.taskStatus === "Complete"
+            approved: applications.filter(
+                (item) => item.applicationStatus === "Approved"
+            ).length,
+
+            rejected: applications.filter(
+                (item) => item.applicationStatus === "Rejected"
+            ).length,
+
+            completed: applications.filter(
+                (item) => item.taskStatus === "Complete"
             ).length,
 
             expired: applications.filter(
-                (a) =>
-                    a.taskStatus !== "Complete" &&
-                    a.deliveryDate &&
-                    getDeadline(a.deliveryDate).status === "Expired"
+                (item) =>
+                    item.taskStatus !== "Complete" &&
+                    item.deliveryDate &&
+                    getDeadline(item.deliveryDate).status === "Expired"
             ).length,
         };
-    }, [applications]);
+    }, [applications, pagination.total]);
 
-    // Search and filters
+    // Status and case filters apply to the currently loaded page.
     const filteredApplications = useMemo(() => {
         return applications.filter((app) => {
-            const query = search.toLowerCase();
-
-            const matchesSearch = [
-                app.applicationNo,
-                app.applicantName,
-                app.guardianName,
-                app.cnic,
-                app.phone,
-            ]
-                .join(" ")
-                .toLowerCase()
-                .includes(query);
+            const currentStatus =
+                statusType === "Application"
+                    ? app.applicationStatus
+                    : app.taskStatus;
 
             const matchesStatus =
                 activeFilter === "All" ||
-                app.taskStatus === activeFilter;
+                currentStatus === activeFilter;
 
             const matchesCase =
                 caseFilter === "All" ||
                 app.caseType === caseFilter;
 
-            return matchesSearch && matchesStatus && matchesCase;
+            return matchesStatus && matchesCase;
         });
-    }, [applications, search, activeFilter, caseFilter]);
+    }, [applications, activeFilter, caseFilter, statusType]);
+
+    const filters =
+        statusType === "Application"
+            ? APPLICATION_FILTERS
+            : TASK_FILTERS;
 
     const openAddModal = () => {
         setEditingApplication(null);
@@ -724,66 +187,63 @@ export default function Applications() {
         setModalOpen(true);
     };
 
-    // Save application to PostgreSQL
-   const saveApplication = async (form) => {
-  try {
-    setSaving(true);
+    const closeModal = () => {
+        setModalOpen(false);
+        setEditingApplication(null);
+    };
 
-    if (editingApplication) {
-      // Existing application number preserve hoga
-      const payload = mapToDatabase(form);
+    // Save application
+    const saveApplication = async (form) => {
+        try {
+            setSaving(true);
 
-      const response = await applicationService.update(
-        editingApplication.id,
-        payload
-      );
+            const payload = mapToDatabase(form);
 
-      const updatedApplication = mapApplication(
-        response.application
-      );
+            if (editingApplication) {
+                await applicationService.update(
+                    editingApplication.id,
+                    payload
+                );
 
-      setApplications((prev) =>
-        prev.map((item) =>
-          item.id === updatedApplication.id
-            ? updatedApplication
-            : item
-        )
-      );
+                toast.success("Application updated successfully");
+            } else {
+                const response = await applicationService.create(payload);
 
-      toast.success("Application updated successfully");
-    } else {
-      // New application: number PostgreSQL generate karega
-      const payload = mapToDatabase(form);
+                const applicationNumber =
+                    response.data?.application_no ||
+                    response.data?.applicationNo ||
+                    "created";
 
-      const response = await applicationService.create(payload);
+                toast.success(
+                    `Application ${applicationNumber} successfully created`
+                );
+            }
 
-      const newApplication = mapApplication(
-        response.application
-      );
+            closeModal();
 
-      setApplications((prev) => [
-        newApplication,
-        ...prev,
-      ]);
+            // Reload from page 1 so new records are visible.
+            setPage(1);
+            await loadApplications(1);
+        } catch (error) {
+            console.error("Save Application Error:", error);
+            toast.error(error.message || "Failed to save application");
+        } finally {
+            setSaving(false);
+        }
+    };
 
-      toast.success(
-        `Application ${newApplication.applicationNo} created successfully`
-      );
-    }
+    const totalPages = Math.max(pagination.totalPages || 0, 1);
 
-    setModalOpen(false);
-    setEditingApplication(null);
+    // Current page status counts
+    const getFilterCount = (filter) => {
+        if (filter === "All") return applications.length;
 
-  } catch (error) {
-    console.error("Save Application Error:", error);
-    toast.error(error.message || "Failed to save application");
-
-  } finally {
-    setSaving(false);
-  }
-};
-
-    const filters = ["All", "Pending", "Complete", "Hold"];
+        return applications.filter((app) =>
+            statusType === "Application"
+                ? app.applicationStatus === filter
+                : app.taskStatus === filter
+        ).length;
+    };
 
     return (
         <div className="min-h-full space-y-4 bg-[#f5f7fb] p-4 sm:p-5 lg:p-6">
@@ -805,6 +265,7 @@ export default function Applications() {
                 </div>
 
                 <button
+                    type="button"
                     onClick={openAddModal}
                     className="flex h-10 items-center gap-2 rounded-lg bg-[#12395f] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0b2d4d]"
                 >
@@ -823,33 +284,32 @@ export default function Applications() {
                 />
 
                 <StatCard
-                    title="Pending Applications"
+                    title="Pending (Current Page)"
                     value={stats.pending}
                     icon={Clock3}
                     color="bg-amber-50 text-amber-700"
                 />
 
                 <StatCard
-                    title="Completed Applications"
-                    value={stats.complete}
+                    title="Approved (Current Page)"
+                    value={stats.approved}
                     icon={CheckCircle2}
                     color="bg-emerald-50 text-emerald-700"
                 />
 
                 <StatCard
-                    title="Expired Deadlines"
-                    value={stats.expired}
+                    title="Rejected (Current Page)"
+                    value={stats.rejected}
                     icon={AlertCircle}
                     color="bg-red-50 text-red-700"
                 />
             </div>
 
-            {/* Main Table Panel */}
+            {/* Records Panel */}
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 {/* Toolbar */}
                 <div className="flex flex-col gap-3 border-b border-slate-200 p-4 xl:flex-row xl:items-center xl:justify-between">
-
                     <div>
                         <h2 className="text-sm font-bold text-slate-800">
                             Application Records
@@ -858,12 +318,12 @@ export default function Applications() {
                         <p className="mt-0.5 text-xs text-slate-500">
                             {loading
                                 ? "Loading records..."
-                                : `${filteredApplications.length} records found`}
+                                : `${filteredApplications.length} records on this page`}
                         </p>
                     </div>
 
                     <div className="flex flex-col gap-2 sm:flex-row">
-
+                        {/* Search */}
                         <div className="relative min-w-0 sm:w-64">
                             <Search
                                 size={16}
@@ -871,14 +331,25 @@ export default function Applications() {
                             />
 
                             <input
-                                type="text"
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => handleSearch(e.target.value)}
                                 placeholder="Search name, CNIC, application no..."
-                                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs outline-none focus:border-blue-500 focus:bg-white"
+                                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-9 text-xs outline-none focus:border-blue-500 focus:bg-white"
                             />
+
+                            {search && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleSearch("")}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                                    title="Clear search"
+                                >
+                                    <X size={15} />
+                                </button>
+                            )}
                         </div>
 
+                        {/* Case Type */}
                         <div className="relative">
                             <SlidersHorizontal
                                 size={15}
@@ -888,17 +359,15 @@ export default function Applications() {
                             <select
                                 value={caseFilter}
                                 onChange={(e) => setCaseFilter(e.target.value)}
-                                className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-xs font-medium text-slate-600 outline-none focus:border-blue-500 sm:w-40"
+                                className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-xs font-medium text-slate-600 outline-none focus:border-blue-500 sm:w-44"
                             >
                                 <option value="All">All Case Types</option>
-                                <option value="Grocery">Grocery</option>
-                                <option value="Marriage">Marriage</option>
-                                <option value="Medical">Medical</option>
-                                <option value="Education">Education</option>
-                                <option value="Financial Assistance">Financial Assistance</option>
-                                <option value="Household Assistance">Household Assistance</option>
-                                <option value="Multiple">Multiple</option>
-                                <option value="Other">Other</option>
+
+                                {CASE_TYPES.map((type) => (
+                                    <option key={type} value={type}>
+                                        {type}
+                                    </option>
+                                ))}
                             </select>
 
                             <ChevronDown
@@ -906,80 +375,126 @@ export default function Applications() {
                                 className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
                             />
                         </div>
+
+                        {/* Refresh */}
+                        <button
+                            type="button"
+                            onClick={() => loadApplications()}
+                            disabled={loading}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            <RefreshCw
+                                size={14}
+                                className={loading ? "animate-spin" : ""}
+                            />
+                            Refresh
+                        </button>
                     </div>
+                </div>
+
+                {/* Filter Type */}
+                <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
+                    <span className="text-xs font-semibold text-slate-500">
+                        Filter by:
+                    </span>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setStatusType("Application");
+                            setActiveFilter("All");
+                        }}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                            statusType === "Application"
+                                ? "bg-[#12395f] text-white"
+                                : "bg-slate-100 text-slate-600"
+                        }`}
+                    >
+                        Application Status
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setStatusType("Task");
+                            setActiveFilter("All");
+                        }}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                            statusType === "Task"
+                                ? "bg-[#12395f] text-white"
+                                : "bg-slate-100 text-slate-600"
+                        }`}
+                    >
+                        Task Status
+                    </button>
                 </div>
 
                 {/* Status Tabs */}
                 <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-4 pt-2">
-                    {filters.map((filter) => {
-                        const count =
-                            filter === "All"
-                                ? applications.length
-                                : applications.filter(
-                                    (a) => a.taskStatus === filter
-                                ).length;
+                    {filters.map((filter) => (
+                        <button
+                            type="button"
+                            key={filter}
+                            onClick={() => setActiveFilter(filter)}
+                            className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-semibold transition ${
+                                activeFilter === filter
+                                    ? "border-[#174c7b] text-[#174c7b]"
+                                    : "border-transparent text-slate-500 hover:text-slate-800"
+                            }`}
+                        >
+                            {filter}
 
-                        return (
-                            <button
-                                key={filter}
-                                onClick={() => setActiveFilter(filter)}
-                                className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-semibold transition ${activeFilter === filter
-                                        ? "border-[#174c7b] text-[#174c7b]"
-                                        : "border-transparent text-slate-500 hover:text-slate-800"
-                                    }`}
-                            >
-                                {filter}
-
-                                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px]">
-                                    {count}
-                                </span>
-                            </button>
-                        );
-                    })}
+                            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px]">
+                                {getFilterCount(filter)}
+                            </span>
+                        </button>
+                    ))}
                 </div>
 
-                {/* Applications Table */}
+                {/* Table */}
                 <div className="w-full overflow-x-auto">
-                    <table className="w-full min-w-[900px] border-collapse text-left">
-
+                    <table className="w-full min-w-[1100px] border-collapse text-left">
                         <thead>
                             <tr className="bg-slate-50">
-                                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500">
                                     Application / Applicant
                                 </th>
 
-                                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500">
                                     Case Type
                                 </th>
 
-                                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500">
                                     Receiving Date
                                 </th>
 
-                                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500">
                                     Delivery Date
                                 </th>
 
-                                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                                    Deadline
+                                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500">
+                                    Application Status
                                 </th>
 
-                                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500">
                                     Task Status
                                 </th>
 
-                                <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-500">
+                                    Deadline
+                                </th>
+
+                                <th className="px-4 py-3 text-right text-[10px] font-bold uppercase text-slate-500">
                                     Actions
                                 </th>
                             </tr>
                         </thead>
 
                         <tbody className="divide-y divide-slate-100">
-
                             {loading ? (
                                 <tr>
                                     <td
-                                        colSpan="7"
+                                        colSpan="8"
                                         className="px-4 py-14 text-center text-sm text-slate-500"
                                     >
                                         Loading applications...
@@ -1023,6 +538,14 @@ export default function Applications() {
                                             </td>
 
                                             <td className="px-4 py-3">
+                                                <StatusBadge status={app.applicationStatus} />
+                                            </td>
+
+                                            <td className="px-4 py-3">
+                                                <StatusBadge status={app.taskStatus} />
+                                            </td>
+
+                                            <td className="px-4 py-3">
                                                 <div className="space-y-1">
                                                     <StatusBadge
                                                         status={
@@ -1043,23 +566,21 @@ export default function Applications() {
                                             </td>
 
                                             <td className="px-4 py-3">
-                                                <StatusBadge status={app.taskStatus} />
-                                            </td>
-
-                                            <td className="px-4 py-3">
                                                 <div className="flex items-center justify-end gap-1">
                                                     <button
+                                                        type="button"
                                                         title="View Details"
                                                         onClick={() => setViewApplication(app)}
-                                                        className="rounded-lg p-2 text-slate-500 transition hover:bg-blue-50 hover:text-blue-700"
+                                                        className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700"
                                                     >
                                                         <Eye size={16} />
                                                     </button>
 
                                                     <button
+                                                        type="button"
                                                         title="Edit Application"
                                                         onClick={() => openEditModal(app)}
-                                                        className="rounded-lg p-2 text-slate-500 transition hover:bg-amber-50 hover:text-amber-700"
+                                                        className="rounded-lg p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-700"
                                                     >
                                                         <Pencil size={16} />
                                                     </button>
@@ -1072,7 +593,7 @@ export default function Applications() {
 
                             {!loading && filteredApplications.length === 0 && (
                                 <tr>
-                                    <td colSpan="7" className="px-4 py-14 text-center">
+                                    <td colSpan="8" className="px-4 py-14 text-center">
                                         <FileText
                                             size={30}
                                             className="mx-auto mb-3 text-slate-300"
@@ -1092,16 +613,45 @@ export default function Applications() {
                     </table>
                 </div>
 
-                {/* Table Footer */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
+                {/* Pagination Footer */}
+                <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-xs text-slate-500">
-                        Showing {filteredApplications.length} of{" "}
-                        {applications.length} applications
+                        Showing{" "}
+                        {pagination.total === 0
+                            ? 0
+                            : (page - 1) * PAGE_SIZE + 1}
+                        {" "}to{" "}
+                        {Math.min(page * PAGE_SIZE, pagination.total)}
+                        {" "}of {pagination.total} applications
                     </p>
 
-                    <p className="text-[11px] text-slate-400">
-                        Application Management
-                    </p>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            disabled={page <= 1 || loading}
+                            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            <ChevronLeft size={15} />
+                            Previous
+                        </button>
+
+                        <span className="px-2 text-xs font-semibold text-slate-700">
+                            Page {page} of {totalPages}
+                        </span>
+
+                        <button
+                            type="button"
+                            disabled={page >= totalPages || loading}
+                            onClick={() =>
+                                setPage((prev) => Math.min(prev + 1, totalPages))
+                            }
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            Next
+                            <ChevronRight size={15} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1109,10 +659,7 @@ export default function Applications() {
             <ApplicationModal
                 key={editingApplication?.id || "new-application"}
                 open={modalOpen}
-                onClose={() => {
-                    setModalOpen(false);
-                    setEditingApplication(null);
-                }}
+                onClose={closeModal}
                 onSave={saveApplication}
                 editingApplication={editingApplication}
                 saving={saving}

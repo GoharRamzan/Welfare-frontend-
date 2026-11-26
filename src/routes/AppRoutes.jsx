@@ -8,6 +8,8 @@ import PublicRoute from "../components/PublicRoute";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Applications from "../pages/Applications";
 import Donors from "../pages/Donors";
+import Beneficiaries from "../pages/Beneficiaries";
+import MonthlyGrocery from "../pages/MonthlyGrocery";
 
 export default function AppRoutes() {
   return (
@@ -36,6 +38,8 @@ export default function AppRoutes() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/applications" element={<Applications/>} />
         <Route path="/donors" element={<Donors/>} />
+        <Route path="/beneficiaries" element={<Beneficiaries/>} />
+        <Route path="/monthly-grocery" element={<MonthlyGrocery/>} />
 
       </Route>
 

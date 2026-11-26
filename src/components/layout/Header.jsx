@@ -32,7 +32,7 @@ export default function Header({ onMenuClick }) {
             {title}
           </h1>
           <p className="hidden text-xs text-slate-500 sm:block">
-            Fikr-e-Sadaat Welfare Foundation
+            Fikhre Saadat Welfare Foundation
           </p>
         </div>
       </div>
