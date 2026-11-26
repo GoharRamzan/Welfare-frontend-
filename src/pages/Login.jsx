@@ -90,13 +90,13 @@ export default function App() {
           <div className="relative flex shrink-0 items-center gap-3">
             <img
               src={logo}
-              alt="Fikr-e-Sadaat Welfare Foundation"
+              alt="Fikhre-Saadat Welfare Foundation"
               className="h-14 w-[72px] rounded-lg bg-white p-1 object-contain sm:h-16 sm:w-[82px]"
             />
 
             <div>
               <p className="text-xs font-bold tracking-wide sm:text-sm">
-                FIKR-E-SADAAT
+                FIKHRE SAADAT
               </p>
               <p className="text-[10px] tracking-[0.12em] text-blue-200 sm:text-xs">
                 WELFARE FOUNDATION
