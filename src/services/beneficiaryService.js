@@ -1,4 +1,4 @@
-import API_URL from "../services/api.js";
+import { API_URL } from "./api.js";
 
 const request = async (endpoint, options = {}) => {
     let response;

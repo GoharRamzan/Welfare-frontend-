@@ -1,5 +1,4 @@
-import API_URL from "../services/api.js";
-
+import { API_URL } from "./api.js";
 async function request(endpoint = "", options = {}) {
     let response;
 

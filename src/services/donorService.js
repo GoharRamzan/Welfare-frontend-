@@ -1,5 +1,5 @@
 
-import API_URL from "../services/api.js";
+import { API_URL } from "./api.js";
 // Common API request
 const request = async (endpoint, options = {}) => {
   const url = `${API_URL}${endpoint}`;
